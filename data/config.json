@@ -1,0 +1,31 @@
+{
+  "talkbacks" : [ "no siema", "hej", "witaj!", "i ty też terefere!", "; )", "miło mi", "why, hello there!" ],
+  "bot-nick" : "krucafuks",
+  "server" : "irc.quakenet.org",
+  "kick-talkbacks" : [ "wstydziłbyś się waćpan!", "KARRRRAMBA", "terefere mi stąd!", "idź mścij się na firemarku!", "how about a nice warm cup of fuck the hell off?" ],
+  "bot-join-channels" : [ "#inf.aei.polsl.pl" ],
+  "port" : 6667,
+  "bot-mode" : "+iw",
+  "bot-realname" : "yuuki-bot",
+  "parrot-register-probability" : 0.063,
+  "parrot-reply-probability" : 0.012,
+  "declensions": {
+      "ktoskowi": "ktosiek",
+      "ktośkowi": "ktosiek",
+      "nyuu": "Nyuu",
+      "Nyuu": "Nyuu",
+      "grazynie": "Grazyna",
+      "Grazynie": "Grazyna",
+      "windoo": "windoo",
+      "cotojest": "cotojest",
+      "agakax": "agakax",
+      "zuzi": "zuzia",
+      "agacie": "agata",
+      "kozakowi": "kozak127",
+      "pieskowi_leszkowi": "piesek_leszek",
+      "żaneta": "zanecie",
+      "zaneta": "zanecie",
+      "killi_": "killa_",
+      "killi": "killa"
+  }
+}

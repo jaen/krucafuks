@@ -1,0 +1,500 @@
+        reply (if can-talkback
+                  (if (and (= command "PRIVMSG") (or (some #{(args 0)} (@config :bot-join-channels)) (= realname "jaen")))
+                      (let [from-channel (args 0)
+                            drunk-regexp #"(?:([^\s:]+):?\s+)?jest(?:e(?:s|ś))?\s+pijany"]
+                        (cond
+                           (= (directed-at body)
+                              (@config :bot-nick)) (condp re-find body
+                                                     ; (or (= nick "firemark") (= realname "tiramo")) (msg from-channel "firemark: siema!")
+                                                     #"przywitaj\s+si(e|ę)" (msg from-channel "no witam")
+                                                     #"(powiedz|powiesz).*" (let [[say-what say-where ] (re-find #"(?:powiedz|powiesz)(.*?)(#.*)?$" body)] (smart-say say-what (or say-where from-channel)))
+                                                     #"dobry\s*bot!?" (msg from-channel (rand-nth ["^_^" "*_*" ";3" "PURRRR~!"]))
+                                                     #"siema!?" (if (> @siema-count (+ 2 (rand-int 3)))
+                                                                    (do
+                                                                       (.start (Thread. (fn [] (Thread/sleep (+ 30000 (rand-int 30000)))
+                                                                                               (rejoin from-channel))))         
+                                                                       (reset! siema-count 0)
+                                                                       (Thread/sleep (+ 2200 (rand-int 1800)))
+                                                                       (vec (flatten [(msg from-channel "a pierdolcie sie wszyscy!") (format "PART %s" from-channel)] )))
+                                                                    (do
+                                                                       (Thread/sleep (+ 1800 (rand-int 1200)))
+                                                                       (swap! siema-count inc)
+                                                                       (msg from-channel (rand-nth ["spierdalaj" "pierdol sie" "zamknie morde"]))))
+                                                    nil)
+                          (re-find #"party([!\.\?]?|\s|$)" body-lowercase)    (msg from-channel (rand-nth ["Party! Party!! PARTY!!!"]))
+                          (re-find drunk-regexp body-lowercase) (let [drunk-name ((re-find drunk-regexp body) 1)]
+                                                                (if drunk-name
+                                                                     (vec (flatten [(msg from-channel drunk-name)
+                                                                                    (msg from-channel "spierdalaj!")
+                                                                                    (msg from-channel drunk-name)
+                                                                                    (msg from-channel "jesteś pijany! SPIERDALAJ!")]))
+                                                                     []))))))]
+                                                             ;true (msg from-channel (format "%s: %s" nick (rand-nth @talkbacks))))))))]
+  (if reply
+      (merge-response-map response-map { :inhibit-parrot true :replies {:talkback-reply reply }})
+      response-map)))
+))))))))))))))))
+(defn talkback
+  [response-map]
+  (let [line-data (or (response-map :line-data) {})
+        command (line-data :command)
+        args (line-data :args)
+        body (line-data :body)
+        body-lowercase (if body (s/lower-case body))
+        [nick realname] (line-data :from)
+        can-talkback (not (response-map :inhibit-talkback))
+        reply (if can-talkback
+                  (if (and (= command "PRIVMSG") (or (some #{(args 0)} (@config :bot-join-channels)) (= realname "jaen")))
+                      (let [from-channel (args 0)
+                            drunk-regexp #"(?:([^\s:]+):?\s+)?jest(?:e(?:s|ś))?\s+pijany"]
+                        (cond
+                           (= (directed-at body)
+                              (@config :bot-nick)) (condp re-find body
+                                                     ; (or (= nick "firemark") (= realname "tiramo")) (msg from-channel "firemark: siema!")
+                                                     #"przywitaj\s+si(e|ę)" (msg from-channel "no witam")
+                                                     #"(powiedz|powiesz).*" (let [[say-what say-where ] (re-find #"(?:powiedz|powiesz)(.*?)(#.*)?$" body)] (smart-say say-what (or say-where from-channel)))
+                                                     #"dobry\s*bot!?" (msg from-channel (rand-nth ["^_^" "*_*" ";3" "PURRRR~!"]))
+                                                     #"siema!?" (if (> @siema-count (+ 2 (rand-int 3)))
+                                                                    (do
+                                                                       (.start (Thread. (fn [] (Thread/sleep (+ 30000 (rand-int 30000)))
+                                                                                               (rejoin from-channel))))         
+                                                                       (reset! siema-count 0)
+                                                                       (Thread/sleep (+ 2200 (rand-int 1800)))
+                                                                       (vec (flatten [(msg from-channel "a pierdolcie sie wszyscy!") (format "PART %s" from-channel)] )))
+                                                                    (do
+                                                                       (Thread/sleep (+ 1800 (rand-int 1200)))
+                                                                       (swap! siema-count inc)
+                                                                       (msg from-channel (rand-nth ["spierdalaj" "pierdol sie" "zamknie morde"]))))
+                                                    nil)
+                          (re-find #"party([!\.\?]?|\s|$)" body-lowercase)    (msg from-channel (rand-nth ["Party! Party!! PARTY!!!"]))
+                          (re-find drunk-regexp body-lowercase) (let [drunk-name ((re-find drunk-regexp body) 1)]
+                                                                (if drunk-name
+                                                                     (vec (flatten [(msg from-channel drunk-name)
+                                                                                    (msg from-channel "spierdalaj!")
+                                                                                    (msg from-channel drunk-name)
+                                                                                    (msg from-channel "jesteś pijany! SPIERDALAJ!")]))
+                                                                     []))))))]
+                                                             ;true (msg from-channel (format "%s: %s" nick (rand-nth @talkbacks))))))))]
+  (if reply
+      (merge-response-map response-map { :inhibit-parrot true :replies {:talkback-reply reply }})
+      response-map)))
+(defn smart-say
+  [words where]
+  (println "smart-say")
+  (let [split-words (s/split words #"\s+")]
+        ;[lead-part say-part] (partition-by #(some #{(do-declension %)} @users-online) split-words)]
+        ;(s/join say-part " ")))
+        ;(println split-words)
+        (println (split-words 0) ":" (split-words 1) ":" (drop 2 split-words))
+        (cond
+          (re-find #"(?i)cos|coś" (split-words 1) (msg where (s/trim (rand-nth @parrot-talkbacks))))
+        ;(println (msg where (format "%s: %s" lead-part (s/join say-part " "))))
+        ""))
+)
+(defn smart-say
+  [words where]
+  (println "smart-say")
+  (let [split-words (s/split words #"\s+")]
+        ;[lead-part say-part] (partition-by #(some #{(do-declension %)} @users-online) split-words)]
+        ;(s/join say-part " ")))
+        ;(println split-words)
+        (println (split-words 0) ":" (split-words 1) ":" (drop 2 split-words))
+        (cond
+          (re-find #"(?i)cos|coś" (split-words 1) (msg where (s/trim (rand-nth @parrot-talkbacks)))))
+        ;(println (msg where (format "%s: %s" lead-part (s/join say-part " "))))
+        ""))
+(defn smart-say
+  [words where]
+  (println "smart-say")
+  (let [split-words (s/split words #"\s+")]
+        ;[lead-part say-part] (partition-by #(some #{(do-declension %)} @users-online) split-words)]
+        ;(s/join say-part " ")))
+        ;(println split-words)
+        (println (split-words 0) ":" (split-words 1) ":" (drop 2 split-words))
+        (cond
+          (re-find #"(?i)cos|coś" (split-words 1)) (msg where (s/trim (rand-nth @parrot-talkbacks))))
+        ;(println (msg where (format "%s: %s" lead-part (s/join say-part " "))))
+        ""))
+(defn smart-say
+  [words where]
+  (println "smart-say")
+  (let [split-words (s/split words #"\s+")]
+        ;[lead-part say-part] (partition-by #(some #{(do-declension %)} @users-online) split-words)]
+        ;(s/join say-part " ")))
+        ;(println split-words)
+        (println (split-words 0) ":" (split-words 1) ":" (drop 2 split-words))
+        (cond
+          (re-find #"(?i)cos|coś" (split-words 1)) (println "cos"));(msg where (s/trim (rand-nth @parrot-talkbacks))))
+        ;(println (msg where (format "%s: %s" lead-part (s/join say-part " "))))
+        ""))
+(defn smart-say
+  [words where]
+  (println "smart-say")
+  (let [split-words (s/split words #"\s+")]
+        ;[lead-part say-part] (partition-by #(some #{(do-declension %)} @users-online) split-words)]
+        ;(s/join say-part " ")))
+        ;(println split-words)
+        (println (split-words 0) ":" (split-words 1) ":" (drop 2 split-words))
+        (cond
+          (re-find #"(?i)cos|coś" (split-words 1)) (msg where (s/trim (rand-nth @parrot-talkbacks))))))
+(defn smart-say
+  [words where]
+  (println "smart-say")
+  (let [split-words (s/split words #"\s+")]
+        ;[lead-part say-part] (partition-by #(some #{(do-declension %)} @users-online) split-words)]
+        ;(s/join say-part " ")))
+        ;(println split-words)
+        (println (split-words 0) ":" (split-words 1) ":" (drop 2 split-words))
+        (cond
+          (re-find #"(?i)cos|coś" (split-words 1)) (println (msg where (s/trim (rand-nth @parrot-talkbacks)))))
+        ""))
+(defn smart-say
+  [words where]
+  (println "smart-say")
+  (let [split-words (s/split words #"\s+")]
+        ;[lead-part say-part] (partition-by #(some #{(do-declension %)} @users-online) split-words)]
+        ;(s/join say-part " ")))
+        (println words where)
+        (println (split-words 0) ":" (split-words 1) ":" (drop 2 split-words))
+        (cond
+          (re-find #"(?i)cos|coś" (split-words 1)) (println (msg where (s/trim (rand-nth @parrot-talkbacks)))))
+        ""))
+(defn smart-say
+  [words where]
+  (println "smart-say")
+  (let [split-words (s/split words #"\s+")]
+        ;[lead-part say-part] (partition-by #(some #{(do-declension %)} @users-online) split-words)]
+        ;(s/join say-part " ")))
+        (println words ":" where)
+        (println (split-words 0) ":" (split-words 1) ":" (drop 2 split-words))
+        (cond
+          (re-find #"(?i)cos|coś" (split-words 1)) (println (msg where (s/trim (rand-nth @parrot-talkbacks)))))
+        ""))
+(re-find #"(?:powiedz|powiesz)(.*?)(#.*)?$" " krucafuks: powiedz coś #inf.aei.polsl.pl")
+(re-find #"(?:powiedz|powiesz)(.*?)(#.*)?$" "krucafuks: powiedz coś #inf.aei.polsl.pl")
+(let [[a b](re-find #"(?:powiedz|powiesz)(.*?)(#.*)?$" "krucafuks: powiedz coś #inf.aei.polsl.pl")] (println a))
+(let [[a b](re-find #"(?:powiedz|powiesz)(.*?)(#.*)?$" "krucafuks: powiedz coś #inf.aei.polsl.pl")] (println b))
+(let [[_ a b](re-find #"(?:powiedz|powiesz)(.*?)(#.*)?$" "krucafuks: powiedz coś #inf.aei.polsl.pl")] (println b))
+(defn talkback
+  [response-map]
+  (let [line-data (or (response-map :line-data) {})
+        command (line-data :command)
+        args (line-data :args)
+        body (line-data :body)
+        body-lowercase (if body (s/lower-case body))
+        [nick realname] (line-data :from)
+        can-talkback (not (response-map :inhibit-talkback))
+        reply (if can-talkback
+                  (if (and (= command "PRIVMSG") (or (some #{(args 0)} (@config :bot-join-channels)) (= realname "jaen")))
+                      (let [from-channel (args 0)
+                            drunk-regexp #"(?:([^\s:]+):?\s+)?jest(?:e(?:s|ś))?\s+pijany"]
+                        (cond
+                           (= (directed-at body)
+                              (@config :bot-nick)) (condp re-find body
+                                                     ; (or (= nick "firemark") (= realname "tiramo")) (msg from-channel "firemark: siema!")
+                                                     #"przywitaj\s+si(e|ę)" (msg from-channel "no witam")
+                                                     #"(powiedz|powiesz).*" (let [[_ say-what say-where] (re-find #"(?:powiedz|powiesz)(.*?)(#.*)?$" body)] (smart-say say-what (or say-where from-channel)))
+                                                     #"dobry\s*bot!?" (msg from-channel (rand-nth ["^_^" "*_*" ";3" "PURRRR~!"]))
+                                                     #"siema!?" (if (> @siema-count (+ 2 (rand-int 3)))
+                                                                    (do
+                                                                       (.start (Thread. (fn [] (Thread/sleep (+ 30000 (rand-int 30000)))
+                                                                                               (rejoin from-channel))))         
+                                                                       (reset! siema-count 0)
+                                                                       (Thread/sleep (+ 2200 (rand-int 1800)))
+                                                                       (vec (flatten [(msg from-channel "a pierdolcie sie wszyscy!") (format "PART %s" from-channel)] )))
+                                                                    (do
+                                                                       (Thread/sleep (+ 1800 (rand-int 1200)))
+                                                                       (swap! siema-count inc)
+                                                                       (msg from-channel (rand-nth ["spierdalaj" "pierdol sie" "zamknie morde"]))))
+                                                    nil)
+                          (re-find #"party([!\.\?]?|\s|$)" body-lowercase)    (msg from-channel (rand-nth ["Party! Party!! PARTY!!!"]))
+                          (re-find drunk-regexp body-lowercase) (let [drunk-name ((re-find drunk-regexp body) 1)]
+                                                                (if drunk-name
+                                                                     (vec (flatten [(msg from-channel drunk-name)
+                                                                                    (msg from-channel "spierdalaj!")
+                                                                                    (msg from-channel drunk-name)
+                                                                                    (msg from-channel "jesteś pijany! SPIERDALAJ!")]))
+                                                                     []))))))]
+                                                             ;true (msg from-channel (format "%s: %s" nick (rand-nth @talkbacks))))))))]
+  (if reply
+      (merge-response-map response-map { :inhibit-parrot true :replies {:talkback-reply reply }})
+      response-map)))
+(defn smart-say
+  [words where]
+  (println "smart-say")
+  (let [split-words (s/split words #"\s+")]
+        ;[lead-part say-part] (partition-by #(some #{(do-declension %)} @users-online) split-words)]
+        ;(s/join say-part " ")))
+        (println words ":" where)
+        (println (split-words 0) ":" (split-words 1) ":" (drop 2 split-words))
+        (cond
+          (re-find #"(?i)cos|coś" (split-words 1)) 
+            (let [user #(some #{(do-declension (split-words 2))} @users-online)]
+              (if (user)
+                  (println (msg where (format "%s: %s" user (s/trim (rand-nth @parrot-talkbacks)))))
+                  (println (msg where (s/trim (rand-nth @parrot-talkbacks)))))))
+        ""))
+(defn smart-say
+  [words where]
+  (println "smart-say")
+  (let [split-words (s/split words #"\s+")]
+        ;[lead-part say-part] (partition-by #(some #{(do-declension %)} @users-online) split-words)]
+        ;(s/join say-part " ")))
+        (println words ":" where)
+        (println (split-words 0) ":" (split-words 1) ":" (drop 2 split-words))
+        (cond
+          (re-find #"(?i)cos|coś" (split-words 1)) 
+            (let [user (some #{(do-declension (split-words 2))} @users-online)]
+              (if (user)
+                  (println (msg where (format "%s: %s" user (s/trim (rand-nth @parrot-talkbacks)))))
+                  (println (msg where (s/trim (rand-nth @parrot-talkbacks)))))))
+        ""))
+(defn smart-say
+  [words where]
+  (println "smart-say")
+  (let [split-words (s/split words #"\s+")]
+        ;[lead-part say-part] (partition-by #(some #{(do-declension %)} @users-online) split-words)]
+        ;(s/join say-part " ")))
+        (println words ":" where)
+        (println (split-words 0) ":" (split-words 1) ":" (drop 2 split-words))
+        (cond
+          (re-find #"(?i)cos|coś" (split-words 1)) 
+            (let [user (some #{(do-declension (split-words 2))} @users-online)]
+              (if user
+                  (println (msg where (format "%s: %s" user (s/trim (rand-nth @parrot-talkbacks)))))
+                  (println (msg where (s/trim (rand-nth @parrot-talkbacks)))))))
+        ""))
+(defn smart-say
+  [words where]
+  (println "smart-say")
+  (let [split-words (s/split words #"\s+")]
+        ;[lead-part say-part] (partition-by #(some #{(do-declension %)} @users-online) split-words)]
+        ;(s/join say-part " ")))
+        (println words ":" where)
+        (println (split-words 0) ":" (split-words 1) ":" (drop 2 split-words))
+        (cond
+          (re-find #"(?i)cos|coś" (split-words 1)) 
+            (let [user (some #{(do-declension (split-words 2))} @users-online)]
+              (if user
+                  (println (msg where (format "%s: %s" user (s/trim (rand-nth @parrot-talkbacks)))))
+                  (println (msg where (s/trim (rand-nth @parrot-talkbacks)))))))))
+(defn smart-say
+  [words where]
+  (println "smart-say")
+  (let [split-words (s/split words #"\s+")]
+        ;[lead-part say-part] (partition-by #(some #{(do-declension %)} @users-online) split-words)]
+        ;(s/join say-part " ")))
+        (println words ":" where)
+        (println (split-words 0) ":" (split-words 1) ":" (drop 2 split-words))
+        (cond
+          (re-find #"(?i)cos|coś" (split-words 1)) 
+            (let [user (some #{(do-declension (split-words 2))} @users-online)]
+              (if user
+                  (msg where (format "%s: %s" user (s/trim (rand-nth @parrot-talkbacks))))
+                  (msg where (s/trim (rand-nth @parrot-talkbacks))))))))
+(defn smart-say
+  [words where]
+  (println "smart-say")
+  (let [split-words (s/split words #"\s+")]
+        ;[lead-part say-part] (partition-by #(some #{(do-declension %)} @users-online) split-words)]
+        ;(s/join say-part " ")))
+        (println words ":" where)
+        (println (split-words 0) ":" (split-words 1) ":" (drop 2 split-words))
+        (cond
+          (re-find #"(?i)cos|coś" (split-words 1)) (let [user (some #{(do-declension (split-words 2))} @users-online)]
+                                                        (if user
+                                                            (msg where (format "%s: %s" user (s/trim (rand-nth @parrot-talkbacks))))
+                                                            (msg where (s/trim (rand-nth @parrot-talkbacks)))))
+          (some #{(do-declension (split-words 0))} @users-online) (msg where (format "%s: %s" (split-words 0) (s/trim (s/join words)))))))
+(defn rejoin
+  [channel]
+  (enqueue @global-irc-connection (format "JOIN %s" channel)))
+(defn smart-say
+  [words where]
+  (println "smart-say")
+  (let [split-words (s/split words #"\s+")]
+        ;[lead-part say-part] (partition-by #(some #{(do-declension %)} @users-online) split-words)]
+        ;(s/join say-part " ")))
+        (println words ":" where)
+        (println (split-words 0) ":" (split-words 1) ":" (drop 2 split-words))
+        (cond
+          (re-find #"(?i)cos|coś" (split-words 1)) (let [user (some #{(do-declension (split-words 2))} @users-online)]
+                                                        (if user
+                                                            (msg where (format "%s: %s" user (s/trim (rand-nth @parrot-talkbacks))))
+                                                            (msg where (s/trim (rand-nth @parrot-talkbacks)))))
+          (some #{(do-declension (split-words 0))} @users-online) (println (msg where (format "%s: %s" (split-words 0) (s/trim (s/join (drop 1 words)))))))))
+(defn talkback
+  [response-map]
+  (let [line-data (or (response-map :line-data) {})
+        command (line-data :command)
+        args (line-data :args)
+        body (line-data :body)
+        body-lowercase (if body (s/lower-case body))
+        [nick realname] (line-data :from)
+        can-talkback (not (response-map :inhibit-talkback))
+        reply (if can-talkback
+                  (if (and (= command "PRIVMSG") (or (some #{(args 0)} (@config :bot-join-channels)) (= realname "jaen")))
+                      (let [from-channel (args 0)
+                            drunk-regexp #"(?:([^\s:]+):?\s+)?jest(?:e(?:s|ś))?\s+pijany"]
+                        (cond
+                           (= (directed-at body)
+                              (@config :bot-nick)) (condp re-find body
+                                                     ; (or (= nick "firemark") (= realname "tiramo")) (msg from-channel "firemark: siema!")
+                                                     #"przywitaj\s+si(e|ę)" (msg from-channel "no witam")
+                                                     #"(powiedz|powiesz).*" (let [[_ say-what say-where] (re-find #"(?:powiedz|powiesz)(.*?)(#.*)?$" body)] (smart-say (s/trim say-what) (or say-where from-channel)))
+                                                     #"dobry\s*bot!?" (msg from-channel (rand-nth ["^_^" "*_*" ";3" "PURRRR~!"]))
+                                                     #"siema!?" (if (> @siema-count (+ 2 (rand-int 3)))
+                                                                    (do
+                                                                       (.start (Thread. (fn [] (Thread/sleep (+ 30000 (rand-int 30000)))
+                                                                                               (rejoin from-channel))))         
+                                                                       (reset! siema-count 0)
+                                                                       (Thread/sleep (+ 2200 (rand-int 1800)))
+                                                                       (vec (flatten [(msg from-channel "a pierdolcie sie wszyscy!") (format "PART %s" from-channel)] )))
+                                                                    (do
+                                                                       (Thread/sleep (+ 1800 (rand-int 1200)))
+                                                                       (swap! siema-count inc)
+                                                                       (msg from-channel (rand-nth ["spierdalaj" "pierdol sie" "zamknie morde"]))))
+                                                    nil)
+                          (re-find #"party([!\.\?]?|\s|$)" body-lowercase)    (msg from-channel (rand-nth ["Party! Party!! PARTY!!!"]))
+                          (re-find drunk-regexp body-lowercase) (let [drunk-name ((re-find drunk-regexp body) 1)]
+                                                                (if drunk-name
+                                                                     (vec (flatten [(msg from-channel drunk-name)
+                                                                                    (msg from-channel "spierdalaj!")
+                                                                                    (msg from-channel drunk-name)
+                                                                                    (msg from-channel "jesteś pijany! SPIERDALAJ!")]))
+                                                                     []))))))]
+                                                             ;true (msg from-channel (format "%s: %s" nick (rand-nth @talkbacks))))))))]
+  (if reply
+      (merge-response-map response-map { :inhibit-parrot true :replies {:talkback-reply reply }})
+      response-map)))
+(defn smart-say
+  [words where]
+  (println "smart-say")
+  (let [split-words (s/split words #"\s+")]
+        ;[lead-part say-part] (partition-by #(some #{(do-declension %)} @users-online) split-words)]
+        ;(s/join say-part " ")))
+        (println words ":" where)
+        (println (split-words 0) ":" (split-words 1) ":" (drop 2 split-words))
+        (cond
+          (re-find #"(?i)cos|coś" (split-words 1)) (let [user (some #{(do-declension (split-words 2))} @users-online)]
+                                                        (if user
+                                                            (msg where (format "%s: %s" user (s/trim (rand-nth @parrot-talkbacks))))
+                                                            (msg where (s/trim (rand-nth @parrot-talkbacks)))))
+          (some #{(do-declension (split-words 0))} @users-online) (println (msg where (format "%s: %s" (split-words 0) (s/trim (s/join (drop 1 split-words )))))))))
+(defn smart-say
+  [words where]
+  (println "smart-say")
+  (let [split-words (s/split words #"\s+")]
+        ;[lead-part say-part] (partition-by #(some #{(do-declension %)} @users-online) split-words)]
+        ;(s/join say-part " ")))
+        (println words ":" where)
+        (println (split-words 0) ":" (split-words 1) ":" (drop 2 split-words))
+        (cond
+          (re-find #"(?i)cos|coś" (split-words 1)) (let [user (some #{(do-declension (split-words 2))} @users-online)]
+                                                        (if user
+                                                            (msg where (format "%s: %s" user (s/trim (rand-nth @parrot-talkbacks))))
+                                                            (msg where (s/trim (rand-nth @parrot-talkbacks)))))
+          (some #{(do-declension (split-words 0))} @users-online) (println (msg where (format "%s: %s" (split-words 0) (s/trim (s/join " " (drop 1 split-words )))))))))
+(defn rejoin
+  [channel]
+  (enqueue @global-irc-connection (format "JOIN %s" channel)))
+(defn smart-say
+  [words where]
+  (println "smart-say")
+  (let [split-words (s/split words #"\s+")]
+        ;[lead-part say-part] (partition-by #(some #{(do-declension %)} @users-online) split-words)]
+        ;(s/join say-part " ")))
+        (println words ":" where)
+        (println (split-words 0) ":" (split-words 1) ":" (drop 2 split-words))
+        (cond
+          (re-find #"(?i)cos|coś" (split-words 1)) (let [user (some #{(do-declension (split-words 2))} @users-online)]
+                                                        (if user
+                                                            (msg where (format "%s: %s" user (s/trim (rand-nth @parrot-talkbacks))))
+                                                            (msg where (s/trim (rand-nth @parrot-talkbacks)))))
+          (some #{(do-declension (split-words 0))} @users-online) (msg where (format "%s: %s" (split-words 0) (s/trim (s/join " " (drop 1 split-words ))))))))
+(defn smart-say
+  [words where]
+  (println "smart-say")
+  (let [split-words (s/split words #"\s+")]
+        ;[lead-part say-part] (partition-by #(some #{(do-declension %)} @users-online) split-words)]
+        ;(s/join say-part " ")))
+        (println words ":" where)
+        (println (split-words 0) ":" (split-words 1) ":" (drop 2 split-words))
+        (cond
+          (re-find #"(?i)cos|coś" (split-words 1)) (let [user (some #{(do-declension (replace (split-words 2) #"\?|!|\." ""))} @users-online)]
+                                                        (if user
+                                                            (msg where (format "%s: %s" user (s/trim (rand-nth @parrot-talkbacks))))
+                                                            (msg where (s/trim (rand-nth @parrot-talkbacks)))))
+          (some #{(do-declension (split-words 0))} @users-online) (msg where (format "%s: %s" (split-words 0) (s/trim (s/join " " (drop 1 split-words ))))))))
+(defn smart-say
+  [words where]
+  (println "smart-say")
+  (let [split-words (s/split words #"\s+")]
+        ;[lead-part say-part] (partition-by #(some #{(do-declension %)} @users-online) split-words)]
+        ;(s/join say-part " ")))
+        (println words ":" where)
+        (println (split-words 0) ":" (split-words 1) ":" (drop 2 split-words))
+        (cond
+          (re-find #"(?i)cos|coś" (split-words 0)) (let [user (some #{(do-declension (replace (split-words 1) #"\?|!|\." ""))} @users-online)]
+                                                        (if user
+                                                            (msg where (format "%s: %s" user (s/trim (rand-nth @parrot-talkbacks))))
+                                                            (msg where (s/trim (rand-nth @parrot-talkbacks)))))
+          (some #{(do-declension (split-words 0))} @users-online) (msg where (format "%s: %s" (split-words 0) (s/trim (s/join " " (drop 1 split-words ))))))))
+(defn smart-say
+  [words where]
+  (println "smart-say")
+  (let [split-words (s/split words #"\s+")]
+        ;[lead-part say-part] (partition-by #(some #{(do-declension %)} @users-online) split-words)]
+        ;(s/join say-part " ")))
+        (println words ":" where)
+        (println (split-words 0) ":" (split-words 1) ":" (drop 2 split-words))
+        (cond
+          (re-find #"(?i)cos|coś" (split-words 0)) (let [user (some #{(do-declension (s/replace (split-words 1) #"\?|!|\." ""))} @users-online)]
+                                                        (if user
+                                                            (msg where (format "%s: %s" user (s/trim (rand-nth @parrot-talkbacks))))
+                                                            (msg where (s/trim (rand-nth @parrot-talkbacks)))))
+          (some #{(do-declension (split-words 0))} @users-online) (msg where (format "%s: %s" (split-words 0) (s/trim (s/join " " (drop 1 split-words ))))))))
+(defn smart-say
+  [words where]
+  (println "smart-say")
+  (let [split-words (s/split words #"\s+")]
+        ;[lead-part say-part] (partition-by #(some #{(do-declension %)} @users-online) split-words)]
+        ;(s/join say-part " ")))
+        ; (println words ":" where)
+        ; (println (split-words 0) ":" (split-words 1) ":" (drop 2 split-words))
+        (cond
+          (re-find #"(?i)cos|coś" (split-words 0)) (let [user (some #{(do-declension (s/replace (split-words 1) #"\?|!|\." ""))} @users-online)]
+                                                        (if user
+                                                            (msg where (format "%s: %s" user (s/trim (rand-nth @parrot-talkbacks))))
+                                                            (msg where (s/trim (rand-nth @parrot-talkbacks)))))
+          (some #{(do-declension (split-words 0))} @users-online) (msg where (format "%s: %s" (split-words 0) (s/trim (s/join " " (drop 1 split-words ))))))))
+[0 1 2]
+([0 1 2] 0)
+([0 1 2] 3)
+(in [1 2 3] 0)
+(contains? [1 2 3] 0)
+(contains? [1 2 3] w)
+(contains? [1 2 3] 3)
+(= true "")
+(first ())
+(rest ())
+(rest nil)
+(float 1.2)
+(float (double 1.2))
+(float (double 1.2222222222222222222222222))
+(double 1.2222222222222222222222222)
+(contains? [1 2 3] 3)
+(defn smart-say
+  [words where]
+  (println "smart-say")
+  (let [split-words (s/split words #"\s+")]
+        ;[lead-part say-part] (partition-by #(some #{(do-declension %)} @users-online) split-words)]
+        ;(s/join say-part " ")))
+        ; (println words ":" where)
+        ; (println (split-words 0) ":" (split-words 1) ":" (drop 2 split-words))
+        (cond
+          (re-find #"(?i)cos|coś" (split-words 0)) (let [user (if (contains? split-words 1) (some #{(do-declension (s/replace (split-words 1) #"\?|!|\." ""))} @users-online))]
+                                                        (if user
+                                                            (msg where (format "%s: %s" user (s/trim (rand-nth @parrot-talkbacks))))
+                                                            (msg where (s/trim (rand-nth @parrot-talkbacks)))))
+          (some #{(do-declension (split-words 0))} @users-online) (msg where (format "%s: %s" (split-words 0) (s/trim (s/join " " (drop 1 split-words ))))))))
