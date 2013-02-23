@@ -115,16 +115,13 @@
   [words where]
   (println "smart-say")
   (let [split-words (s/split words #"\s+")]
-        ;[lead-part say-part] (partition-by #(some #{(do-declension %)} @users-online) split-words)]
-        ;(s/join say-part " ")))
-        ; (println words ":" where)
-        ; (println (split-words 0) ":" (split-words 1) ":" (drop 2 split-words))
         (cond
           (re-find #"(?i)cos|coś" (split-words 0)) (let [user (if (contains? split-words 1) (some #{(do-declension (s/replace (split-words 1) #"\?|!|\." ""))} @users-online))]
                                                         (if user
                                                             (msg where (format "%s: %s" user (s/trim (rand-nth @parrot-talkbacks))))
                                                             (msg where (s/trim (rand-nth @parrot-talkbacks)))))
-          (some #{(do-declension (split-words 0))} @users-online) (msg where (format "%s: %s" (split-words 0) (s/trim (s/join " " (drop 1 split-words ))))))))
+          (some #{(do-declension (split-words 0))} @users-online) (msg where (format "%s: %s" (do-declension (split-words 0)) (s/trim (s/join " " (drop 1 split-words )))))
+          :else (msg where words))))
 
 (defn talkback
   [response-map]
