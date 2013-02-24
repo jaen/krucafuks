@@ -9,6 +9,11 @@
   "bot-realname" : "yuuki-bot",
   "parrot-register-probability" : 0.063,
   "parrot-reply-probability" : 0.012,
+  "quakenet-password": "R1Mg8sgxvB",
+  "permissions": {
+    "all": ["jaen"],
+    "kick": ["tymik"]
+  },
   "declensions": {
       "ktoskowi": "ktosiek",
       "ktośkowi": "ktosiek",
@@ -26,6 +31,8 @@
       "żaneta": "zanecie",
       "zaneta": "zanecie",
       "killi_": "killa_",
-      "killi": "killa"
+      "killi": "killa",
+      "Dagusi": "Dagusia",
+      "dagusi": "Dagusia"
   }
 }

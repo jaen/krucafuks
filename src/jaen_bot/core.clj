@@ -31,6 +31,11 @@
   []
   (read-line))
 
+(defn has-permission
+      [realname permission]
+      (or (some #{realname} ((@config :permissions) :all))
+          (some #{realname} ((@config :permissions) permission))))
+
 (defn directed-at
   [body]
   (if body
@@ -88,7 +93,7 @@
                       (= command "PART") (do (swap! users-online disj nick) [])
                       (= command "JOIN") (do (swap! users-online conj nick) [])
                       (= command "NICK") (do (swap! users-online disj nick) (swap! users-online conj (s/trim body)) [])
-                      (= command "001") (do (reset! state :authed) [])
+                      (= command "001") (do (reset! state :authed) [(format "PRIVMSG Q@CServe.quakenet.org :auth %s %s" (@config :bot-nick) (@config :quakenet-password))])
                       (= command "353") (do (doseq [nick (map #((re-matches #"[\+@]?([^@\+]+)" %) 1) (s/split body #"\s+"))] (swap! users-online conj nick)) [])
                       (and (>= @auth-lines 3)
                            (= @state :connected)) [(format "NICK %s" (@config :bot-nick)) (format "USER %s %s a b" (@config :bot-realname) (@config :bot-mode))]
@@ -116,6 +121,7 @@
   (println "smart-say")
   (let [split-words (s/split words #"\s+")]
         (cond
+          (re-find #"(?i).pogoda\s+sosnowiec" words) (msg where "No chance in fucking hell!")
           (re-find #"(?i)cos|coś" (split-words 0)) (let [user (if (contains? split-words 1) (some #{(do-declension (s/replace (split-words 1) #"\?|!|\." ""))} @users-online))]
                                                         (if user
                                                             (msg where (format "%s: %s" user (s/trim (rand-nth @parrot-talkbacks))))
@@ -139,22 +145,25 @@
                         (cond
                            (= (directed-at body)
                               (@config :bot-nick)) (condp re-find body
-                                                     ; (or (= nick "firemark") (= realname "tiramo")) (msg from-channel "firemark: siema!")
-                                                     #"przywitaj\s+si(e|ę)" (msg from-channel "no witam")
-                                                     #"(powiedz|powiesz).*" (let [[_ say-what say-where] (re-find #"(?:powiedz|powiesz)(.*?)(#.*)?$" body)] (smart-say (s/trim say-what) (or say-where from-channel)))
-                                                     #"dobry\s*bot!?" (msg from-channel (rand-nth ["^_^" "*_*" ";3" "PURRRR~!"]))
-                                                     #"siema!?" (if (> @siema-count (+ 2 (rand-int 3)))
-                                                                    (do
-                                                                       (.start (Thread. (fn [] (Thread/sleep (+ 30000 (rand-int 30000)))
-                                                                                               (rejoin from-channel))))         
-                                                                       (reset! siema-count 0)
-                                                                       (Thread/sleep (+ 2200 (rand-int 1800)))
-                                                                       (vec (flatten [(msg from-channel "a pierdolcie sie wszyscy!") (format "PART %s" from-channel)] )))
-                                                                    (do
-                                                                       (Thread/sleep (+ 1800 (rand-int 1200)))
-                                                                       (swap! siema-count inc)
-                                                                       (msg from-channel (rand-nth ["spierdalaj" "pierdol sie" "zamknie morde"]))))
-                                                    nil)
+                                                          #"kick\s+[^\s#]+(\s+#[^\s]+)?" (let [[_ whom from] (re-find #"kick\s+([^\s#]+)(\s+#[^\s]+)?" body)]
+                                                                                               (if (has-permission realname :kick)
+                                                                                                    [(format "KICK %s %s :ION CANNONS ONLINE!" (or from from-channel) whom)]
+                                                                                                    []))
+                                                          #"przywitaj\s+si(e|ę)" (msg from-channel "no witam")
+                                                          #"(powiedz|powiesz).*" (let [[_ say-what say-where] (re-find #"(?:powiedz|powiesz)(.*?)(#.*)?$" body)] (smart-say (s/trim say-what) (or say-where from-channel)))
+                                                          #"dobry\s*bot!?" (msg from-channel (rand-nth ["^_^" "*_*" ";3" "PURRRR~!"]))
+                                                          #"siema!?" (if (> @siema-count (+ 2 (rand-int 3)))
+                                                                         (do
+                                                                            (.start (Thread. (fn [] (Thread/sleep (+ 30000 (rand-int 30000)))
+                                                                                                    (rejoin from-channel))))         
+                                                                            (reset! siema-count 0)
+                                                                            (Thread/sleep (+ 2200 (rand-int 1800)))
+                                                                            (vec (flatten [(msg from-channel "a pierdolcie sie wszyscy!") (format "PART %s" from-channel)] )))
+                                                                         (do
+                                                                            (Thread/sleep (+ 1800 (rand-int 1200)))
+                                                                            (swap! siema-count inc)
+                                                                            (msg from-channel (rand-nth ["spierdalaj" "pierdol sie" "zamknie morde"]))))
+                                                          nil)
                           (re-find #"party([!\.\?]?|\s|$)" body-lowercase)    (msg from-channel (rand-nth ["Party! Party!! PARTY!!!"]))
                           (re-find drunk-regexp body-lowercase) (let [drunk-name ((re-find drunk-regexp body) 1)]
                                                                 (if drunk-name
@@ -254,6 +263,7 @@
         irc-pipeline (fn [line] (run-pipeline { }
                                             (fn [response-map]
                                               (do
+                                                ;(if (not (re-find #"#inf\.aei\.polsl\.pl" line))
                                                 (println "IRC SAYS:" line)
                                                 (assoc response-map :line line)))
                                             (fn [response-map]
@@ -278,6 +288,10 @@
   [what]
   (doseq [line what]
     (enqueue @global-irc-connection line)))
+
+(defn return
+      []
+      (global-gay-say (vec (flatten [(map #(format "JOIN %s" %) (@config :bot-join-channels))]))))
 
 (def default-config {
                       :server "irc.quakenet.org"
