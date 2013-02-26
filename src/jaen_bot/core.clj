@@ -139,14 +139,14 @@
         [nick realname] (line-data :from)
         can-talkback (not (response-map :inhibit-talkback))
         reply (if can-talkback
-                  (if (and (= command "PRIVMSG") (or (some #{(args 0)} (@config :bot-join-channels)) (= realname "jaen")))
+                  (if (and (= command "PRIVMSG") (or (some #{(args 0)} (@config :bot-join-channels)) (has-permission realname :privmsg)))
                       (let [from-channel (args 0)
                             drunk-regexp #"(?:([^\s:]+):?\s+)?jest(?:e(?:s|ś))?\s+pijany"]
                         (cond
                            (= (directed-at body)
                               (@config :bot-nick)) (condp re-find body
                                                           #"kick\s+[^\s#]+(\s+#[^\s]+)?" (let [[_ whom from] (re-find #"kick\s+([^\s#]+)(\s+#[^\s]+)?" body)]
-                                                                                               (if (has-permission realname :kick)
+                                                                                               (if (and (has-permission realname :kick) (not (= whom (@config :bot-nick))))
                                                                                                     [(format "KICK %s %s :ION CANNONS ONLINE!" (or from from-channel) whom)]
                                                                                                     []))
                                                           #"przywitaj\s+si(e|ę)" (msg from-channel "no witam")
@@ -229,7 +229,7 @@
                 (merge-response-map response-map { :inhibit-parrot true
                                                    :replies {
                                                      :count-pluspluses-reply (apply msg from-channel [(s/join ", " (map (fn [k] (format "%s: %s" k (@pluspluses k)))
-                                                                                                      (take 10 (map first (filter #(contains?  @users-online (last %)) (sort-by last plus-command @pluspluses))))))])}
+                                                                                                      (take 10 (map first (filter #(contains?  @users-online (first %)) (sort-by last plus-command @pluspluses))))))])}
                                                   :inhibit-talkback true })
                 (do
                   (let [line-data (or (response-map :line-data) {})

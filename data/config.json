@@ -12,6 +12,7 @@
   "quakenet-password": "R1Mg8sgxvB",
   "permissions": {
     "all": ["jaen"],
+    "privmsg": ["tymik"],
     "kick": ["tymik"]
   },
   "declensions": {
