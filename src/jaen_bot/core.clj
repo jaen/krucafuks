@@ -2,10 +2,12 @@
   (:use [lamina.core]
         [aleph.tcp]
         [gloss.core]
-        [clojure.java.io])
+        [clojure.java.io]
+        [overtone.at-at])
   (:require [net.cgrand.regex :as r]
             [clojure.string :as s]
-            [cheshire.core :as json]))
+            [cheshire.core :as json]
+            [clojure.set :as set]))
 
 (def config (atom {}))
 (def state (atom :connected))
@@ -15,6 +17,7 @@
 (def parrot-talkbacks (atom #{}))
 (def declensions (atom {}))
 (def siema-count (atom 0))
+(def scheduling-pool (atom nil))
 (def global-irc-connection (atom nil))
 
 ; GOD WHERE ARE MY NAMED CAPTURES
@@ -26,6 +29,8 @@
 (def point-regex #"\s*([^\+\s]+)(\+\+|--)s*")
 (def kick-talkbacks (atom []))
 (def talkbacks (atom [])) 
+(def current-channels (atom #{}))
+(def kicked-by (atom {}))
 
 (defn ask-reply
   []
@@ -66,6 +71,28 @@
           alternate-declension alternate-declension
           (and basic-declension (not basic-has-alternate-declension)) basic-declension)))
 
+(defn global-gay-say
+  [what]
+  (doseq [line what]
+    (enqueue @global-irc-connection line)))
+
+; (defn return
+;       []
+;       (global-gay-say (vec (flatten [(map #(format "JOIN %s" %) (@config :bot-join-channels))]))))
+
+;OH GOD GLOBAL STATE
+(defn rejoin
+  [channel]
+  (global-gay-say [(format "JOIN %s" channel)]))
+
+(defn rejoin-periodically
+  []
+  (doseq [channel (set/difference (set (@config :bot-join-channels)) @current-channels)]
+    (do
+      (println "trying to rejoin: " channel)
+      (rejoin channel)
+      (swap! current-channels conj channel))))
+
 (defn protocol-reply
   [line]
   (do
@@ -77,19 +104,31 @@
           body (match 3)
           [_ nick realname] (and from (re-matches nick-regex from))
           reply (if (= nick (@config :bot-nick)) ; is this is an acknowledgement?
-                      (cond
-                        (and (= command "MODE")
-                             (let [[nick mode] args]
-                                  (and (= nick (@config :bot-nick))
-                                       (= mode (@config :bot-mode))))) (do
-                                                                         (reset! state :joined)
-                                                                         (vec (flatten [(map #(format "JOIN %s" %) (@config :bot-join-channels))]))))
                     (cond
-                      (= command "PING") (format "PONG :%s" body)
-                      
-                      (= command "KICK") (do (println (@config :bot-nick) args)
-                                             (if (= (@config :bot-nick) (args 1))
-                                                 (vec (flatten [(format "JOIN %s" (args 0)) (msg (args 0) (format "%s: %s" nick (rand-nth @kick-talkbacks)))]))))
+                      (and (= command "MODE")
+                           (let [[nick mode] args]
+                                (and (= nick (@config :bot-nick))
+                                     (= mode (@config :bot-mode))))) (do
+                                                                       (reset! state :joined)
+                                                                       (every 200 rejoin-periodically @scheduling-pool)
+                                                                       (vec (flatten [(map #(do (swap! current-channels conj %) (format "JOIN %s" %)) (@config :bot-join-channels))])))
+                      (= command "JOIN") (let [kicker (@kicked-by (args 0))]
+                                              (println (and (= nick (@config :bot-nick)) kicker))
+                                              (if (and (= nick (@config :bot-nick)) kicker)
+                                                  (do (println (msg (args 0) (format "%s: %s" kicker (rand-nth @kick-talkbacks))))
+                                                      (swap! kicked-by dissoc (args 0))
+                                                      (vec (flatten [(msg (args 0) (format "%s: %s" kicker (rand-nth @kick-talkbacks)))])))
+                                                  [])))
+                    (cond
+                      (= command "PING") (format "PONG :%s" body)                      
+                      (= command "KICK") (do (if (= (@config :bot-nick) (args 1))
+                                                 (do
+                                                   (swap! current-channels disj (args 0))
+                                                   (swap! kicked-by assoc (args 0) nick)))
+                                             [])
+                      ; (= command "KICK") (do (println (@config :bot-nick) args)
+                      ;                        (if (= (@config :bot-nick) (args 1))
+                      ;                            (vec (flatten [(format "JOIN %s" (args 0)) (msg (args 0) (format "%s: %s" nick (rand-nth @kick-talkbacks)))]))))
                       (= command "PART") (do (swap! users-online disj nick) [])
                       (= command "JOIN") (do (swap! users-online conj nick) [])
                       (= command "NICK") (do (swap! users-online disj nick) (swap! users-online conj (s/trim body)) [])
@@ -99,6 +138,11 @@
                            (= @state :connected)) [(format "NICK %s" (@config :bot-nick)) (format "USER %s %s a b" (@config :bot-realname) (@config :bot-mode))]
                       (= command "NOTICE") (cond
                                                (= (args 0) "AUTH") (do (println "auth line") (swap! auth-lines inc) []))))]
+      (if (and body (reduce (fn [acc regex] (and (re-find regex body) acc))
+                  true
+                  [#"(?i)banned\s+\(\+b\)"]))
+          (do
+            (swap! current-channels disj (args 1))))
       (if (not (nil? reply))
           {:line-data { :from [nick realname]
                         :command command
@@ -110,11 +154,6 @@
                         :command command
                         :args args
                         :body body }} ))))
-
-;OH GOD GLOBAL STATE
-(defn rejoin
-  [channel]
-  (enqueue @global-irc-connection (format "JOIN %s" channel)))
 
 (defn smart-say
   [words where]
@@ -284,15 +323,6 @@
     (reset! global-irc-connection irc-connection)
     (receive-all irc-connection irc-pipeline)))
 
-(defn global-gay-say
-  [what]
-  (doseq [line what]
-    (enqueue @global-irc-connection line)))
-
-(defn return
-      []
-      (global-gay-say (vec (flatten [(map #(format "JOIN %s" %) (@config :bot-join-channels))]))))
-
 (def default-config {
                       :server "irc.quakenet.org"
                       :port 6667
@@ -324,6 +354,7 @@
         (reset! parrot-talkbacks stored-parrot-lines)
         (reset! talkbacks (@config :talkbacks))
         (reset! declensions (@config :declensions))
+        (reset! scheduling-pool (mk-pool))
         (.addShutdownHook (Runtime/getRuntime) (Thread. (fn [] (do (println "Going down with this ship...")
                                                                    (with-open [wrtr (writer (format "%s/data/pluspluses.json" cwd))]
                                                                               (.write wrtr (json/generate-string @pluspluses)))
